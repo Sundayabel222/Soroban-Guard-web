@@ -20,6 +20,7 @@ export default function HomePage() {
   const [walletKey, setWalletKey] = useState<string | null>(null)
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
   const [networkHealthy, setNetworkHealthy] = useState(true)
+  const [statusMessage, setStatusMessage] = useState('')
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
@@ -35,14 +36,17 @@ export default function HomePage() {
   async function handleScan(source: string) {
     setLoading(true)
     setError(null)
+    setStatusMessage('Scanning your contract…')
     try {
       const data = await scanContract(source)
+      setStatusMessage(`Scan complete. ${data.findings.length} finding${data.findings.length !== 1 ? 's' : ''} detected.`)
       // Store results in sessionStorage so the results page can read them
       sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
       router.push('/results')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unexpected error'
       setError(msg)
+      setStatusMessage('')
     } finally {
       setLoading(false)
     }
@@ -50,6 +54,15 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Aria-live region for screen readers */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {statusMessage}
+      </div>
+
       {/* Network health banner */}
       {walletKey && !networkHealthy && (
         <NetworkHealthBanner
