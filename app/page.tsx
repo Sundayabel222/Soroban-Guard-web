@@ -1,12 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ScanInput from '@/components/ScanInput'
 import WalletConnect from '@/components/WalletConnect'
 import NetworkBadge from '@/components/NetworkBadge'
+import NetworkHealthBanner from '@/components/NetworkHealthBanner'
 import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract } from '@/lib/api'
+import { checkNetworkHealth } from '@/lib/stellar'
 import type { Finding } from '@/types/findings'
 import type { StellarNetwork } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
@@ -17,10 +19,17 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
   const [walletKey, setWalletKey] = useState<string | null>(null)
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
+  const [networkHealthy, setNetworkHealthy] = useState(true)
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
     setWalletNetwork(network)
+    setNetworkHealthy(true)
+    
+    // Check network health
+    checkNetworkHealth(network).then(healthy => {
+      setNetworkHealthy(healthy)
+    })
   }
 
   async function handleScan(source: string) {
@@ -41,6 +50,14 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Network health banner */}
+      {walletKey && !networkHealthy && (
+        <NetworkHealthBanner
+          network={walletNetwork.name}
+          onDismiss={() => setNetworkHealthy(true)}
+        />
+      )}
+
       {/* Nav */}
       <header className="border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
