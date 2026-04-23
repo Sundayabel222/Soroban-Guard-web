@@ -9,6 +9,7 @@ import NetworkHealthBanner from '@/components/NetworkHealthBanner'
 import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract } from '@/lib/api'
 import { checkNetworkHealth } from '@/lib/stellar'
+import { addScanRecord, getScanHistory } from '@/lib/history'
 import type { Finding } from '@/types/findings'
 import type { StellarNetwork, ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
@@ -20,7 +21,82 @@ export default function HomePage() {
   const [walletKey, setWalletKey] = useState<string | null>(null)
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
   const [networkHealthy, setNetworkHealthy] = useState(true)
-  const [statusMessage, setStatusMessage] = useState('')
+  const [selectedScans, setSelectedScans] = useState<string[]>([])
+  const [scanHistory, setScanHistory] = useState<ContractScanRecord[]>([])
+  const [draggedCode, setDraggedCode] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    if (walletKey) {
+      setScanHistory(getScanHistory(walletKey))
+    } else {
+      setScanHistory([])
+    }
+  }, [walletKey])
+
+  useEffect(() => {
+    function handleDragOver(e: DragEvent) {
+      e.preventDefault()
+      setIsDragging(true)
+    }
+    function handleDragLeave(e: DragEvent) {
+      e.preventDefault()
+      if (!e.relatedTarget || !(e.currentTarget as Element).contains(e.relatedTarget as Element)) {
+        setIsDragging(false)
+      }
+    }
+    function handleDrop(e: DragEvent) {
+      e.preventDefault()
+      setIsDragging(false)
+      const files = e.dataTransfer?.files
+      if (files && files.length === 1) {
+        const file = files[0]
+        if (!file.name.endsWith('.rs')) {
+          setError('Only .rs files are supported')
+          return
+        }
+        if (file.size > 100000) {
+          setError('File must be less than 100,000 characters')
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const content = e.target?.result as string
+          if (content.length > 100000) {
+            setError('File content exceeds 100,000 characters')
+            return
+          }
+          setDraggedCode(content)
+          setError(null)
+        }
+        reader.readAsText(file)
+      }
+    }
+    document.addEventListener('dragover', handleDragOver)
+    document.addEventListener('dragleave', handleDragLeave)
+    document.addEventListener('drop', handleDrop)
+    return () => {
+      document.removeEventListener('dragover', handleDragOver)
+      document.removeEventListener('dragleave', handleDragLeave)
+      document.removeEventListener('drop', handleDrop)
+    }
+  }, [])
+
+  function handleSelectScan(id: string, checked: boolean) {
+    if (checked) {
+      if (selectedScans.length < 2) {
+        setSelectedScans([...selectedScans, id])
+      }
+    } else {
+      setSelectedScans(selectedScans.filter(s => s !== id))
+    }
+  }
+
+  function handleCompare() {
+    if (selectedScans.length === 2) {
+      router.push(`/compare?a=${selectedScans[0]}&b=${selectedScans[1]}`)
+    }
+  }
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
@@ -58,6 +134,9 @@ export default function HomePage() {
     try {
       const data = await scanContract(contractId)
       sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
+      if (walletKey) {
+        addScanRecord(walletKey, contractId, walletNetwork.name, data.findings)
+      }
       router.push('/results')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unexpected error'
@@ -141,7 +220,7 @@ export default function HomePage() {
 
           {/* Scan card */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-left shadow-2xl">
-            <ScanInput onScan={handleScan} loading={loading} />
+            <ScanInput onScan={handleScan} loading={loading} code={draggedCode} />
 
             {error && (
               <div className="mt-4 flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -156,46 +235,63 @@ export default function HomePage() {
           {/* Recent scans */}
           {walletKey && scanHistory.length > 0 && (
             <div className="mt-8 rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
-              <h3 className="mb-4 text-lg font-semibold text-white">Your recent scans</h3>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Your recent scans</h3>
+                {selectedScans.length === 2 && (
+                  <button
+                    onClick={handleCompare}
+                    className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
+                  >
+                    Compare selected
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
                 {scanHistory.slice(0, 5).map((record, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleHistoryClick(record.contractId)}
-                    disabled={loading}
-                    className="w-full rounded-lg border border-[#2a2d3a] bg-[#12151f] p-3 text-left transition hover:border-indigo-500/40 hover:bg-[#1a1d27] disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-sm text-slate-300">
-                          {record.contractId.slice(0, 12)}...{record.contractId.slice(-8)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {new Date(record.scannedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <NetworkBadge network={NETWORKS[record.network]} />
-                        <div className="flex gap-1">
-                          {record.highCount > 0 && (
-                            <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
-                              {record.highCount}H
-                            </span>
-                          )}
-                          {record.mediumCount > 0 && (
-                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
-                              {record.mediumCount}M
-                            </span>
-                          )}
-                          {record.lowCount > 0 && (
-                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs text-sky-400">
-                              {record.lowCount}L
-                            </span>
-                          )}
+                  <div key={idx} className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedScans.includes(record.id)}
+                      onChange={(e) => handleSelectScan(record.id, e.target.checked)}
+                      className="rounded border-[var(--border)] bg-[var(--bg)] text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <button
+                      onClick={() => handleHistoryClick(record.contractId)}
+                      disabled={loading}
+                      className="flex-1 rounded-lg border border-[#2a2d3a] bg-[#12151f] p-3 text-left transition hover:border-indigo-500/40 hover:bg-[#1a1d27] disabled:opacity-50"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-mono text-sm text-slate-300">
+                            {record.contractId.slice(0, 12)}...{record.contractId.slice(-8)}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(record.scannedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <NetworkBadge network={NETWORKS[record.network]} />
+                          <div className="flex gap-1">
+                            {record.highCount > 0 && (
+                              <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
+                                {record.highCount}H
+                              </span>
+                            )}
+                            {record.mediumCount > 0 && (
+                              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
+                                {record.mediumCount}M
+                              </span>
+                            )}
+                            {record.lowCount > 0 && (
+                              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs text-sky-400">
+                                {record.lowCount}L
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -270,6 +366,19 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="rounded-lg bg-white p-8 text-center text-black shadow-2xl">
+            <svg className="mx-auto h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+            <h3 className="mt-4 text-lg font-semibold">Drop your .rs file here</h3>
+            <p className="mt-2 text-sm text-gray-600">Upload a Rust source file to scan for vulnerabilities</p>
+          </div>
+        </div>
+      )}
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-sm text-slate-600">
         <p>

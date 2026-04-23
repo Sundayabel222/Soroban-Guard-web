@@ -95,3 +95,42 @@ html[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
 .slide-down {
   animation: slideDown 0.15s ease-out;
 }
+
+/* Print styles for PDF export */
+@media print {
+  /* Force white background and black text */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide interactive elements */
+  button, a, input, textarea, select {
+    display: none !important;
+  }
+
+  /* Hide headers and navigation */
+  header {
+    display: none !important;
+  }
+
+  /* Ensure all finding cards are visible and expanded */
+  .slide-down {
+    display: block !important;
+    background: white !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hide pagination */
+  .mt-6 {
+    display: none !important;
+  }
+
+  /* Force light theme colors for content */
+  * {
+    color: black !important;
+    background: white !important;
+  }
+}

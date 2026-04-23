@@ -14,6 +14,7 @@ export default function ResultsPage() {
   const searchParams = useSearchParams()
   const [findings, setFindings] = useState<Finding[] | null>(null)
   const [copied, setCopied] = useState(false)
+  const [navIndex, setNavIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const encoded = searchParams.get('r')
@@ -36,6 +37,30 @@ export default function ResultsPage() {
       router.replace('/')
     }
   }, [router, searchParams])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (findings && (e.key === 'j' || e.key === 'k')) {
+        e.preventDefault()
+        const current = navIndex ?? -1
+        let next
+        if (e.key === 'j') {
+          next = Math.min(current + 1, findings.length - 1)
+        } else {
+          next = Math.max(current - 1, 0)
+        }
+        setNavIndex(next)
+        // Scroll to the finding
+        const element = document.querySelector(`[data-finding-index="${next}"]`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [findings, navIndex])
 
   function handleScanAnother() {
     sessionStorage.removeItem('sg_findings')
@@ -117,6 +142,7 @@ export default function ResultsPage() {
             {findings.length === 0
               ? 'No issues detected.'
               : `${findings.length} finding${findings.length !== 1 ? 's' : ''} detected across your contract.`}
+            {findings.length > 0 && <span className="ml-4 text-xs">Press j/k to navigate findings</span>}
           </p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -173,6 +199,7 @@ export default function ResultsPage() {
                 const order: Record<Severity, number> = { High: 0, Medium: 1, Low: 2 }
                 return order[a.severity] - order[b.severity]
               })}
+              forceExpandedIndex={navIndex}
             />
           </div>
         )}

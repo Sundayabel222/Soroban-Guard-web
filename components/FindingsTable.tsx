@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Finding } from '@/types/findings'
 import SeverityBadge from './SeverityBadge'
 import FindingCard from './FindingCard'
@@ -9,11 +9,27 @@ import CheckTooltip from './CheckTooltip'
 interface Props {
   findings: Finding[]
   pageSize?: number
+  forceExpandedIndex?: number | null
 }
 
-export default function FindingsTable({ findings, pageSize = 20 }: Props) {
+export default function FindingsTable({ findings, pageSize = 20, forceExpandedIndex }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
+  const [isPrint, setIsPrint] = useState(false)
+
+  useEffect(() => {
+    if (forceExpandedIndex !== undefined) {
+      setExpandedIndex(forceExpandedIndex)
+    }
+  }, [forceExpandedIndex])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('print')
+    const handleChange = (e: MediaQueryListEvent) => setIsPrint(e.matches)
+    setIsPrint(mediaQuery.matches)
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
 
   const totalPages = Math.ceil(findings.length / pageSize)
   const start = currentPage * pageSize
@@ -46,7 +62,7 @@ export default function FindingsTable({ findings, pageSize = 20 }: Props) {
         {paginatedFindings.map((finding, i) => {
           const globalIndex = start + i
           return (
-            <div key={globalIndex}>
+            <div key={globalIndex} data-finding-index={globalIndex}>
               {/* Row */}
               <button
                 onClick={() => toggle(globalIndex)}
@@ -93,7 +109,7 @@ export default function FindingsTable({ findings, pageSize = 20 }: Props) {
               </button>
 
               {/* Expanded detail */}
-              {expandedIndex === globalIndex && (
+              {(expandedIndex === globalIndex || isPrint) && (
                 <div className="border-b border-[var(--border)] bg-[var(--bg-tertiary)] px-5 py-4 last:border-b-0">
                   <FindingCard finding={finding} />
                 </div>

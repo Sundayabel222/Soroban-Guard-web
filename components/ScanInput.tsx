@@ -7,14 +7,28 @@ type InputMode = 'code' | 'github' | 'contractId'
 interface Props {
   onScan: (source: string) => void
   loading: boolean
+  code?: string
+  onCodeChange?: (code: string) => void
 }
 
-export default function ScanInput({ onScan, loading }: Props) {
+export default function ScanInput({ onScan, loading, code: externalCode, onCodeChange }: Props) {
   const [mode, setMode] = useState<InputMode>('code')
   const [code, setCode] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [contractId, setContractId] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (externalCode !== undefined) {
+      setCode(externalCode)
+      setMode('code')
+    }
+  }, [externalCode])
+
+  function handleCodeChange(value: string) {
+    setCode(value)
+    onCodeChange?.(value)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -90,7 +104,7 @@ export default function ScanInput({ onScan, loading }: Props) {
           <textarea
             ref={textareaRef}
             value={code}
-            onChange={e => setCode(e.target.value)}
+            onChange={e => handleCodeChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={`#![no_std]\nuse soroban_sdk::{contract, contractimpl, Env};\n\n#[contract]\npub struct MyContract;\n\n#[contractimpl]\nimpl MyContract {\n    pub fn hello(env: Env) -> String {\n        // paste your contract here...\n    }\n}`}
             rows={16}
