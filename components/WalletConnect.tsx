@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { isFreighterInstalled } from '@/lib/wallet'
 import { useWallet } from '@/lib/WalletContext'
+import ContractIdBadge from '@/components/ContractIdBadge'
 
 export default function WalletConnect() {
   const { publicKey, network, connect, disconnect } = useWallet()
@@ -51,9 +52,7 @@ export default function WalletConnect() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span className="font-mono text-xs text-emerald-400">
-            {publicKey.slice(0, 6)}…{publicKey.slice(-4)}
-          </span>
+          <ContractIdBadge id={publicKey} className="text-xs text-emerald-400" />
           {network && (
             <span className="rounded-full bg-[#1a1d27] px-1.5 py-0.5 text-xs text-slate-500">
               {network.name}

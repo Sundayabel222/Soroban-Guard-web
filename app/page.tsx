@@ -10,6 +10,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract } from '@/lib/api'
 import { checkNetworkHealth } from '@/lib/stellar'
 import { useWallet } from '@/lib/WalletContext'
+import ContractIdBadge from '@/components/ContractIdBadge'
 import type { Finding } from '@/types/findings'
 import type { ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
@@ -156,9 +157,10 @@ export default function HomePage() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-sm text-slate-300">
-                          {record.contractId.slice(0, 12)}...{record.contractId.slice(-8)}
-                        </p>
+                        <ContractIdBadge
+                          id={record.contractId}
+                          className="text-slate-300"
+                        />
                         <p className="text-xs text-slate-500">
                           {new Date(record.scannedAt).toLocaleDateString()}
                         </p>
