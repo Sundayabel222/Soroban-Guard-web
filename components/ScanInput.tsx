@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { isValidContractId } from '@/lib/stellar'
 
 type InputMode = 'code' | 'github' | 'contractId'
 
@@ -14,6 +15,7 @@ export default function ScanInput({ onScan, loading }: Props) {
   const [code, setCode] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [contractId, setContractId] = useState('')
+  const [repoError, setRepoError] = useState<string | null>(null)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,13 +29,29 @@ export default function ScanInput({ onScan, loading }: Props) {
     onScan(source)
   }
 
+  function validateGithub(url: string) {
+    if (!url) return { valid: false, message: 'Enter a GitHub repository URL' }
+    try {
+      const u = new URL(url)
+      if (u.protocol !== 'https:') return { valid: false, message: 'URL must use https://' }
+      if (u.hostname.toLowerCase() !== 'github.com') return { valid: false, message: 'Only GitHub repositories are supported' }
+      const parts = u.pathname.replace(/(^\/+|\/+$/g, '').split('/')
+      if (parts.length < 2 || !parts[0] || !parts[1]) return { valid: false, message: 'Enter in the form https://github.com/org/repo' }
+      return { valid: true }
+    } catch {
+      return { valid: false, message: 'Invalid URL' }
+    }
+  }
+
+  const contractValid = contractId.length > 0 ? isValidContractId(contractId.trim()) : false
+
   const canSubmit =
     !loading &&
     (mode === 'code'
       ? code.trim().length > 0
       : mode === 'github'
-        ? repoUrl.trim().length > 0
-        : contractId.trim().length > 0)
+        ? repoUrl.trim().length > 0 && validateGithub(repoUrl).valid
+        : contractId.trim().length > 0 && contractValid)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,7 +93,7 @@ export default function ScanInput({ onScan, loading }: Props) {
       </div>
 
       {/* Input area */}
-      {mode === 'code' ? (
+  {mode === 'code' ? (
         <div className="relative">
           <textarea
             value={code}
@@ -97,31 +115,61 @@ export default function ScanInput({ onScan, loading }: Props) {
           <input
             type="url"
             value={repoUrl}
-            onChange={e => setRepoUrl(e.target.value)}
+            onChange={e => {
+              const v = e.target.value
+              setRepoUrl(v)
+              const res = validateGithub(v)
+              setRepoError(res.valid ? null : res.message ?? 'Invalid URL')
+            }}
             placeholder="https://github.com/org/repo"
             className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
             disabled={loading}
           />
-          <p className="text-xs text-slate-500">
-            The repository must be public. The scanner will clone and analyze all{' '}
-            <code className="rounded bg-[#1a1d27] px-1 text-slate-400">.rs</code> files.
-          </p>
+          {repoError ? (
+            <p className="text-xs text-rose-400">{repoError}</p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              The repository must be public. The scanner will clone and analyze all{' '}
+              <code className="rounded bg-[#1a1d27] px-1 text-slate-400">.rs</code> files.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
-          <input
-            type="text"
-            value={contractId}
-            onChange={e => setContractId(e.target.value)}
-            placeholder="CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-            className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 font-mono text-sm text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-            disabled={loading}
-            spellCheck={false}
-          />
-          <p className="text-xs text-slate-500">
-            Enter a Soroban contract ID (C-address) deployed on Stellar. The scanner
-            will fetch the WASM bytecode via Soroban RPC and analyze it.
-          </p>
+          <div className="relative">
+            <input
+              type="text"
+              value={contractId}
+              onChange={e => setContractId(e.target.value)}
+              placeholder="CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+              className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 font-mono text-sm text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+              disabled={loading}
+              spellCheck={false}
+            />
+            {contractId.length > 0 && (
+              <span className="absolute right-3 top-3">
+                {contractValid ? (
+                  <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </span>
+            )}
+          </div>
+          {contractId.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              Enter a Soroban contract ID (C-address) deployed on Stellar. The scanner
+              will fetch the WASM bytecode via Soroban RPC and analyze it.
+            </p>
+          ) : contractValid ? (
+            <p className="text-xs text-emerald-400">Valid C-address</p>
+          ) : (
+            <p className="text-xs text-rose-400">Invalid C-address</p>
+          )}
         </div>
       )}
 

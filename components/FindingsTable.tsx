@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Finding } from '@/types/findings'
+import type { Finding, Severity } from '@/types/findings'
 import SeverityBadge from './SeverityBadge'
 import FindingCard from './FindingCard'
 
@@ -24,6 +24,11 @@ export default function FindingsTable({ findings }: Props) {
     }
   }
 
+  const sorted = [...findings].sort((a, b) => {
+    const order: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
+    return order[a.severity] - order[b.severity]
+  })
+
   return (
     <div className="overflow-hidden rounded-xl border border-[#2a2d3a]">
       {/* Table header */}
@@ -35,7 +40,7 @@ export default function FindingsTable({ findings }: Props) {
         <span>Description</span>
       </div>
 
-      {findings.map((finding, i) => (
+  {sorted.map((finding, i) => (
         <div key={i}>
           {/* Row */}
           <button

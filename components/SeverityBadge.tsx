@@ -6,12 +6,14 @@ interface Props {
 }
 
 const styles: Record<Severity, string> = {
+  Critical: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
   High: 'bg-red-500/15 text-red-400 border border-red-500/30',
   Medium: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
   Low: 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
 }
 
 const dots: Record<Severity, string> = {
+  Critical: 'bg-rose-400',
   High: 'bg-red-400',
   Medium: 'bg-amber-400',
   Low: 'bg-sky-400',

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Finding, Severity } from '@/types/findings'
 import FindingsTable from '@/components/FindingsTable'
+import FindingsSkeleton from '@/components/FindingsSkeleton'
 import EmptyState from '@/components/EmptyState'
 import SeverityBadge from '@/components/SeverityBadge'
 
@@ -31,15 +32,13 @@ export default function ResultsPage() {
 
   if (findings === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <svg className="spinner h-8 w-8 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10" />
-        </svg>
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+        <FindingsSkeleton />
       </div>
     )
   }
 
-  const counts: Record<Severity, number> = { High: 0, Medium: 0, Low: 0 }
+  const counts: Record<Severity, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 }
   for (const f of findings) counts[f.severity]++
 
   return (
@@ -75,12 +74,19 @@ export default function ResultsPage() {
               : `${findings.length} finding${findings.length !== 1 ? 's' : ''} detected across your contract.`}
           </p>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             <SummaryCard
               label="Total Findings"
               value={findings.length}
               color="text-white"
               bg="bg-[#1a1d27]"
+            />
+            <SummaryCard
+              label="Critical"
+              value={counts.Critical}
+              color="text-rose-400"
+              bg="bg-rose-500/5"
+              border="border-rose-500/20"
             />
             <SummaryCard
               label="High"
@@ -116,17 +122,17 @@ export default function ResultsPage() {
                 Findings — click a row to expand details
               </h2>
               <div className="flex gap-2">
-                {(['High', 'Medium', 'Low'] as Severity[]).map(s =>
+                {(['Critical', 'High', 'Medium', 'Low'] as Severity[]).map(s =>
                   counts[s] > 0 ? (
                     <SeverityBadge key={s} severity={s} size="sm" />
                   ) : null,
                 )}
               </div>
             </div>
-            {/* Sort: High → Medium → Low */}
+            {/* Sort: Critical → High → Medium → Low */}
             <FindingsTable
               findings={[...findings].sort((a, b) => {
-                const order: Record<Severity, number> = { High: 0, Medium: 1, Low: 2 }
+                const order: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
                 return order[a.severity] - order[b.severity]
               })}
             />
