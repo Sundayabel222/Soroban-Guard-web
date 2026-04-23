@@ -14,7 +14,19 @@ export default function ScanInput({ onScan, loading }: Props) {
   const [code, setCode] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [contractId, setContractId] = useState('')
+  const [normalized, setNormalized] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const normalizedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleContractIdChange(raw: string) {
+    const clean = raw.trim().toUpperCase()
+    setContractId(clean)
+    if (clean !== raw) {
+      if (normalizedTimer.current) clearTimeout(normalizedTimer.current)
+      setNormalized(true)
+      normalizedTimer.current = setTimeout(() => setNormalized(false), 1000)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -122,16 +134,23 @@ export default function ScanInput({ onScan, loading }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
+          <div className="relative">
           <input
             type="text"
             value={contractId}
-            onChange={e => setContractId(e.target.value)}
+            onChange={e => handleContractIdChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
             className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 font-mono text-sm text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
             disabled={loading}
             spellCheck={false}
           />
+          {normalized && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300 transition-opacity duration-500">
+              Normalized
+            </span>
+          )}
+          </div>
           <p className="text-xs text-slate-500">
             Enter a Soroban contract ID (C-address) deployed on Stellar. The scanner
             will fetch the WASM bytecode via Soroban RPC and analyze it.
