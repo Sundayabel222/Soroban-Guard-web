@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Finding } from '@/types/findings'
 import SeverityBadge from './SeverityBadge'
 import FindingCard from './FindingCard'
+import CheckTooltip from './CheckTooltip'
 
 interface Props {
   findings: Finding[]

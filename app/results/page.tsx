@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { Finding, Severity } from '@/types/findings'
+import { decodeFindings } from '@/lib/share'
 import FindingsTable from '@/components/FindingsTable'
 import EmptyState from '@/components/EmptyState'
 import SeverityBadge from '@/components/SeverityBadge'
@@ -10,9 +11,20 @@ import ThemeToggle from '@/components/ThemeToggle'
 
 export default function ResultsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [findings, setFindings] = useState<Finding[] | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
+    const encoded = searchParams.get('r')
+    if (encoded) {
+      const decoded = decodeFindings(encoded)
+      if (decoded.length > 0) {
+        setFindings(decoded)
+        return
+      }
+    }
+
     const raw = sessionStorage.getItem('sg_findings')
     if (!raw) {
       router.replace('/')
@@ -23,11 +35,18 @@ export default function ResultsPage() {
     } catch {
       router.replace('/')
     }
-  }, [router])
+  }, [router, searchParams])
 
   function handleScanAnother() {
     sessionStorage.removeItem('sg_findings')
     router.push('/')
+  }
+
+  function handleShare() {
+    const url = window.location.href
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (findings === null) {
