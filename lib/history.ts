@@ -2,6 +2,26 @@ import type { ContractScanRecord } from '@/types/stellar'
 
 const STORAGE_KEY = 'sg_scan_history'
 
+export function getAllScanHistory(): ContractScanRecord[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    return JSON.parse(raw) as ContractScanRecord[]
+  } catch {
+    return []
+  }
+}
+
+export function clearScanHistory(): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Silently fail
+  }
+}
+
 export function getScanHistory(publicKey: string): ContractScanRecord[] {
   if (typeof window === 'undefined') return []
   try {

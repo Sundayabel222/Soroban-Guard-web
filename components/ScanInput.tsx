@@ -8,13 +8,16 @@ interface Props {
   onScan: (source: string) => void
   loading: boolean
   countdown?: number
+  initialValue?: string
 }
 
-export default function ScanInput({ onScan, loading, countdown = 0 }: Props) {
-  const [mode, setMode] = useState<InputMode>('code')
-  const [code, setCode] = useState('')
+export default function ScanInput({ onScan, loading, countdown = 0, initialValue = '' }: Props) {
+  const [mode, setMode] = useState<InputMode>(() =>
+    initialValue.startsWith('C') && initialValue.length >= 56 ? 'contractId' : 'code'
+  )
+  const [code, setCode] = useState(initialValue.startsWith('C') && initialValue.length >= 56 ? '' : initialValue)
   const [repoUrl, setRepoUrl] = useState('')
-  const [contractId, setContractId] = useState('')
+  const [contractId, setContractId] = useState(initialValue.startsWith('C') && initialValue.length >= 56 ? initialValue : '')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleSubmit(e: React.FormEvent) {

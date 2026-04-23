@@ -1,7 +1,7 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import ScanInput from '@/components/ScanInput'
 import WalletConnect from '@/components/WalletConnect'
 import NetworkBadge from '@/components/NetworkBadge'
@@ -9,12 +9,22 @@ import NetworkHealthBanner from '@/components/NetworkHealthBanner'
 import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract, ApiError } from '@/lib/api'
 import { checkNetworkHealth } from '@/lib/stellar'
-import type { Finding } from '@/types/findings'
+import { getScanHistory } from '@/lib/history'
 import type { StellarNetwork, ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
 
-export default function HomePage() {
+export default function Page() {
+  return (
+    <Suspense>
+      <HomePage />
+    </Suspense>
+  )
+}
+
+function HomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialSource = searchParams.get('source') ?? ''
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(0)
@@ -23,13 +33,13 @@ export default function HomePage() {
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
   const [networkHealthy, setNetworkHealthy] = useState(true)
   const [statusMessage, setStatusMessage] = useState('')
+  const [scanHistory, setScanHistory] = useState<ContractScanRecord[]>([])
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
     setWalletNetwork(network)
     setNetworkHealthy(true)
-    
-    // Check network health
+    setScanHistory(getScanHistory(publicKey))
     checkNetworkHealth(network).then(healthy => {
       setNetworkHealthy(healthy)
     })
@@ -40,7 +50,7 @@ export default function HomePage() {
     if (countdown <= 0) return
     const id = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) {
+        if ((prev as number) <= 1) {
           clearInterval(id)
           // Auto-retry with the pending source
           if (pendingSourceRef.current !== null) {
@@ -66,7 +76,7 @@ export default function HomePage() {
       setStatusMessage(`Scan complete. ${data.findings.length} finding${data.findings.length !== 1 ? 's' : ''} detected.`)
       // Store results in sessionStorage so the results page can read them
       sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
-      router.push(`/results?r=${encoded}`)
+      router.push('/results')
     } catch (err) {
       if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
         pendingSourceRef.current = source
@@ -123,6 +133,12 @@ export default function HomePage() {
           <Logo />
           <div className="flex items-center gap-3">
             <a
+              href="/history"
+              className="rounded-lg px-3 py-1.5 text-sm text-slate-400 ring-1 ring-[var(--border)] transition hover:text-white"
+            >
+              History
+            </a>
+            <a
               href="https://github.com/Veritas-Vaults-Network"
               target="_blank"
               rel="noopener noreferrer"
@@ -172,7 +188,7 @@ export default function HomePage() {
 
           {/* Scan card */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-left shadow-2xl">
-            <ScanInput onScan={handleScan} loading={loading} countdown={countdown} />
+            <ScanInput onScan={handleScan} loading={loading} countdown={countdown} initialValue={initialSource} />
 
             {countdown > 0 && (
               <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
