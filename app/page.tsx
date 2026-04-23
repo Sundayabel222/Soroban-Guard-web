@@ -8,6 +8,7 @@ import NetworkBadge from '@/components/NetworkBadge'
 import NetworkHealthBanner from '@/components/NetworkHealthBanner'
 import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract } from '@/lib/api'
+import { encodeFindings } from '@/lib/share'
 import { checkNetworkHealth } from '@/lib/stellar'
 import type { Finding } from '@/types/findings'
 import type { StellarNetwork, ContractScanRecord } from '@/types/stellar'
@@ -21,6 +22,7 @@ export default function HomePage() {
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
   const [networkHealthy, setNetworkHealthy] = useState(true)
   const [statusMessage, setStatusMessage] = useState('')
+  const [scanHistory] = useState<ContractScanRecord[]>([])
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
@@ -42,6 +44,7 @@ export default function HomePage() {
       setStatusMessage(`Scan complete. ${data.findings.length} finding${data.findings.length !== 1 ? 's' : ''} detected.`)
       // Store results in sessionStorage so the results page can read them
       sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
+      const encoded = encodeFindings(data.findings)
       router.push(`/results?r=${encoded}`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unexpected error'
