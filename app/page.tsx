@@ -8,19 +8,17 @@ import NetworkBadge from '@/components/NetworkBadge'
 import NetworkHealthBanner from '@/components/NetworkHealthBanner'
 import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract, ApiError } from '@/lib/api'
-import { checkNetworkHealth } from '@/lib/stellar'
+import { useWallet } from '@/lib/WalletContext'
 import type { Finding } from '@/types/findings'
-import type { StellarNetwork, ContractScanRecord } from '@/types/stellar'
+import type { ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
 
 export default function HomePage() {
   const router = useRouter()
+  const { publicKey: walletKey, network: walletNetwork, networkHealthy } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rateLimitCountdown, setRateLimitCountdown] = useState<number | null>(null)
-  const [walletKey, setWalletKey] = useState<string | null>(null)
-  const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
-  const [networkHealthy, setNetworkHealthy] = useState(true)
   const [statusMessage, setStatusMessage] = useState('')
   const [scanHistory, setScanHistory] = useState<ContractScanRecord[]>([])
 
@@ -59,17 +57,6 @@ export default function HomePage() {
 
     return () => clearInterval(timer)
   }, [rateLimitCountdown])
-
-  function handleWalletConnect(publicKey: string, network: StellarNetwork) {
-    setWalletKey(publicKey)
-    setWalletNetwork(network)
-    setNetworkHealthy(true)
-    
-    // Check network health
-    checkNetworkHealth(network).then(healthy => {
-      setNetworkHealthy(healthy)
-    })
-  }
 
   async function handleScan(source: string) {
     setLoading(true)
@@ -167,7 +154,7 @@ export default function HomePage() {
               Veritas Vaults Network
             </a>
             <ThemeToggle />
-            <WalletConnect onConnect={handleWalletConnect} />
+            <WalletConnect />
           </div>
         </div>
       </header>

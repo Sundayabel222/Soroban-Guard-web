@@ -49,6 +49,14 @@ export default function ResultsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function handleCopyJson() {
+    if (findings && navigator.clipboard) {
+      navigator.clipboard.writeText(JSON.stringify(findings, null, 2))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   if (findings === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
