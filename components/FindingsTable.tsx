@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Finding } from '@/types/findings'
+import type { Finding, Severity } from '@/types/findings'
 import SeverityBadge from './SeverityBadge'
 import FindingCard from './FindingCard'
 import CheckTooltip from './CheckTooltip'
@@ -30,6 +30,11 @@ export default function FindingsTable({ findings, pageSize = 20 }: Props) {
       toggle(i)
     }
   }
+
+  const sorted = [...findings].sort((a, b) => {
+    const order: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
+    return order[a.severity] - order[b.severity]
+  })
 
   return (
     <div>

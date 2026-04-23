@@ -42,8 +42,8 @@ export default function ScanInput({ onScan, loading }: Props) {
     (mode === 'code'
       ? code.trim().length > 0
       : mode === 'github'
-        ? repoUrl.trim().length > 0
-        : contractId.trim().length > 0)
+        ? repoUrl.trim().length > 0 && validateGithub(repoUrl).valid
+        : contractId.trim().length > 0 && contractValid)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,7 +85,7 @@ export default function ScanInput({ onScan, loading }: Props) {
       </div>
 
       {/* Input area */}
-      {mode === 'code' ? (
+  {mode === 'code' ? (
         <div className="relative">
           <textarea
             ref={textareaRef}
@@ -115,10 +115,14 @@ export default function ScanInput({ onScan, loading }: Props) {
             className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
             disabled={loading}
           />
-          <p className="text-xs text-slate-500">
-            The repository must be public. The scanner will clone and analyze all{' '}
-            <code className="rounded bg-[#1a1d27] px-1 text-slate-400">.rs</code> files.
-          </p>
+          {repoError ? (
+            <p className="text-xs text-rose-400">{repoError}</p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              The repository must be public. The scanner will clone and analyze all{' '}
+              <code className="rounded bg-[#1a1d27] px-1 text-slate-400">.rs</code> files.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
