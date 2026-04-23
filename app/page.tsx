@@ -1,13 +1,16 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ScanInput from '@/components/ScanInput'
 import WalletConnect from '@/components/WalletConnect'
 import NetworkBadge from '@/components/NetworkBadge'
+import NetworkHealthBanner from '@/components/NetworkHealthBanner'
+import ThemeToggle from '@/components/ThemeToggle'
 import { scanContract } from '@/lib/api'
+import { checkNetworkHealth } from '@/lib/stellar'
 import type { Finding } from '@/types/findings'
-import type { StellarNetwork } from '@/types/stellar'
+import type { StellarNetwork, ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
 
 export default function HomePage() {
@@ -16,18 +19,44 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
   const [walletKey, setWalletKey] = useState<string | null>(null)
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork>(NETWORKS.testnet)
+  const [networkHealthy, setNetworkHealthy] = useState(true)
+  const [statusMessage, setStatusMessage] = useState('')
 
   function handleWalletConnect(publicKey: string, network: StellarNetwork) {
     setWalletKey(publicKey)
     setWalletNetwork(network)
+    setNetworkHealthy(true)
+    
+    // Check network health
+    checkNetworkHealth(network).then(healthy => {
+      setNetworkHealthy(healthy)
+    })
   }
 
   async function handleScan(source: string) {
     setLoading(true)
     setError(null)
+    setStatusMessage('Scanning your contract…')
     try {
       const data = await scanContract(source)
+      setStatusMessage(`Scan complete. ${data.findings.length} finding${data.findings.length !== 1 ? 's' : ''} detected.`)
       // Store results in sessionStorage so the results page can read them
+      sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
+      router.push(`/results?r=${encoded}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unexpected error'
+      setError(msg)
+      setStatusMessage('')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleHistoryClick(contractId: string) {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await scanContract(contractId)
       sessionStorage.setItem('sg_findings', JSON.stringify(data.findings))
       router.push('/results')
     } catch (err) {
@@ -40,20 +69,40 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Aria-live region for screen readers */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {statusMessage}
+      </div>
+
+      {/* Network health banner */}
+      {walletKey && !networkHealthy && (
+        <NetworkHealthBanner
+          network={walletNetwork.name}
+          onDismiss={() => setNetworkHealthy(true)}
+        />
+      )}
+
       {/* Nav */}
-      <header className="border-b border-[#2a2d3a] bg-[#0f1117]/80 backdrop-blur-sm">
+      <header className="border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <Logo />
-          <a
-            href="https://github.com/Veritas-Vaults-Network"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-400 ring-1 ring-[#2a2d3a] transition hover:text-white"
-          >
-            <GithubIcon />
-            Veritas Vaults Network
-          </a>
-          <WalletConnect onConnect={handleWalletConnect} />
+          <div className="flex items-center gap-3">
+            <a
+              href="https://github.com/Veritas-Vaults-Network"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-400 ring-1 ring-[var(--border)] transition hover:text-white"
+            >
+              <GithubIcon />
+              Veritas Vaults Network
+            </a>
+            <ThemeToggle />
+            <WalletConnect onConnect={handleWalletConnect} />
+          </div>
         </div>
       </header>
 
@@ -65,8 +114,18 @@ export default function HomePage() {
             Soroban Smart Contract Security
           </div>
           {walletKey && (
-            <div className="mb-3 flex justify-center">
+            <div className="mb-3 flex flex-col items-center gap-3">
               <NetworkBadge network={walletNetwork} />
+              {walletNetwork.name === 'futurenet' && (
+                <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-sm text-violet-300">
+                  <p className="flex items-start gap-2">
+                    <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>You are connected to Futurenet. This network is experimental and contract data may be incomplete.</span>
+                  </p>
+                </div>
+              )}
             </div>
           )}          <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             Find vulnerabilities{' '}
@@ -81,7 +140,7 @@ export default function HomePage() {
           </p>
 
           {/* Scan card */}
-          <div className="rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6 text-left shadow-2xl">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6 text-left shadow-2xl">
             <ScanInput onScan={handleScan} loading={loading} />
 
             {error && (
@@ -93,10 +152,58 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* Recent scans */}
+          {walletKey && scanHistory.length > 0 && (
+            <div className="mt-8 rounded-2xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
+              <h3 className="mb-4 text-lg font-semibold text-white">Your recent scans</h3>
+              <div className="space-y-2">
+                {scanHistory.slice(0, 5).map((record, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleHistoryClick(record.contractId)}
+                    disabled={loading}
+                    className="w-full rounded-lg border border-[#2a2d3a] bg-[#12151f] p-3 text-left transition hover:border-indigo-500/40 hover:bg-[#1a1d27] disabled:opacity-50"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-mono text-sm text-slate-300">
+                          {record.contractId.slice(0, 12)}...{record.contractId.slice(-8)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(record.scannedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <NetworkBadge network={NETWORKS[record.network]} />
+                        <div className="flex gap-1">
+                          {record.highCount > 0 && (
+                            <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
+                              {record.highCount}H
+                            </span>
+                          )}
+                          {record.mediumCount > 0 && (
+                            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
+                              {record.mediumCount}M
+                            </span>
+                          )}
+                          {record.lowCount > 0 && (
+                            <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs text-sky-400">
+                              {record.lowCount}L
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* How it works */}
-        <section className="border-t border-[#2a2d3a] bg-[#0c0e16] py-16">
+        <section className="border-t border-[var(--border)] bg-[var(--bg-tertiary)] py-16">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <h2 className="mb-10 text-center text-2xl font-bold text-white">
               How it works
@@ -164,7 +271,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-[#2a2d3a] py-8 text-center text-sm text-slate-600">
+      <footer className="border-t border-[var(--border)] py-8 text-center text-sm text-slate-600">
         <p>
           Built by{' '}
           <a
@@ -217,7 +324,7 @@ function Step({
   icon: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-[#2a2d3a] bg-[#1a1d27] p-6">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-6">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20">
           {icon}
@@ -246,10 +353,10 @@ function RepoCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group block rounded-xl border p-5 transition hover:border-indigo-500/40 hover:bg-[#1a1d27] ${
+      className={`group block rounded-xl border p-5 transition hover:border-indigo-500/40 hover:bg-[var(--bg-secondary)] ${
         active
           ? 'border-indigo-500/40 bg-indigo-500/5'
-          : 'border-[#2a2d3a] bg-[#12151f]'
+          : 'border-[var(--border)] bg-[var(--bg-tertiary)]'
       }`}
     >
       <div className="mb-2 flex items-center gap-2">

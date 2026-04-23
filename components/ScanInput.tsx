@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { isValidContractId } from '@/lib/stellar'
+import { useState, useRef } from 'react'
 
 type InputMode = 'code' | 'github' | 'contractId'
 
@@ -15,7 +14,7 @@ export default function ScanInput({ onScan, loading }: Props) {
   const [code, setCode] = useState('')
   const [repoUrl, setRepoUrl] = useState('')
   const [contractId, setContractId] = useState('')
-  const [repoError, setRepoError] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,21 +28,14 @@ export default function ScanInput({ onScan, loading }: Props) {
     onScan(source)
   }
 
-  function validateGithub(url: string) {
-    if (!url) return { valid: false, message: 'Enter a GitHub repository URL' }
-    try {
-      const u = new URL(url)
-      if (u.protocol !== 'https:') return { valid: false, message: 'URL must use https://' }
-      if (u.hostname.toLowerCase() !== 'github.com') return { valid: false, message: 'Only GitHub repositories are supported' }
-      const parts = u.pathname.replace(/(^\/+|\/+$/g, '').split('/')
-      if (parts.length < 2 || !parts[0] || !parts[1]) return { valid: false, message: 'Enter in the form https://github.com/org/repo' }
-      return { valid: true }
-    } catch {
-      return { valid: false, message: 'Invalid URL' }
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (canSubmit) {
+        handleSubmit(e as any)
+      }
     }
   }
-
-  const contractValid = contractId.length > 0 ? isValidContractId(contractId.trim()) : false
 
   const canSubmit =
     !loading &&
@@ -96,8 +88,10 @@ export default function ScanInput({ onScan, loading }: Props) {
   {mode === 'code' ? (
         <div className="relative">
           <textarea
+            ref={textareaRef}
             value={code}
             onChange={e => setCode(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder={`#![no_std]\nuse soroban_sdk::{contract, contractimpl, Env};\n\n#[contract]\npub struct MyContract;\n\n#[contractimpl]\nimpl MyContract {\n    pub fn hello(env: Env) -> String {\n        // paste your contract here...\n    }\n}`}
             rows={16}
             className="code-textarea w-full resize-y rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
@@ -115,12 +109,8 @@ export default function ScanInput({ onScan, loading }: Props) {
           <input
             type="url"
             value={repoUrl}
-            onChange={e => {
-              const v = e.target.value
-              setRepoUrl(v)
-              const res = validateGithub(v)
-              setRepoError(res.valid ? null : res.message ?? 'Invalid URL')
-            }}
+            onChange={e => setRepoUrl(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="https://github.com/org/repo"
             className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
             disabled={loading}
@@ -136,65 +126,48 @@ export default function ScanInput({ onScan, loading }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="relative">
-            <input
-              type="text"
-              value={contractId}
-              onChange={e => setContractId(e.target.value)}
-              placeholder="CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-              className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 font-mono text-sm text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
-              disabled={loading}
-              spellCheck={false}
-            />
-            {contractId.length > 0 && (
-              <span className="absolute right-3 top-3">
-                {contractValid ? (
-                  <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
-              </span>
-            )}
-          </div>
-          {contractId.length === 0 ? (
-            <p className="text-xs text-slate-500">
-              Enter a Soroban contract ID (C-address) deployed on Stellar. The scanner
-              will fetch the WASM bytecode via Soroban RPC and analyze it.
-            </p>
-          ) : contractValid ? (
-            <p className="text-xs text-emerald-400">Valid C-address</p>
-          ) : (
-            <p className="text-xs text-rose-400">Invalid C-address</p>
-          )}
+          <input
+            type="text"
+            value={contractId}
+            onChange={e => setContractId(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+            className="w-full rounded-xl border border-[#2a2d3a] bg-[#12151f] px-4 py-3 font-mono text-sm text-slate-300 placeholder-slate-600 outline-none transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+            disabled={loading}
+            spellCheck={false}
+          />
+          <p className="text-xs text-slate-500">
+            Enter a Soroban contract ID (C-address) deployed on Stellar. The scanner
+            will fetch the WASM bytecode via Soroban RPC and analyze it.
+          </p>
         </div>
       )}
 
       {/* Submit */}
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-      >
-        {loading ? (
-          <>
-            <svg className="spinner h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10" />
-            </svg>
-            Scanning…
-          </>
-        ) : (
-          <>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Scan Contract
-          </>
-        )}
-      </button>
+      <div className="space-y-2">
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        >
+          {loading ? (
+            <>
+              <svg className="spinner h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+              Scanning…
+            </>
+          ) : (
+            <>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Scan Contract
+            </>
+          )}
+        </button>
+        <p className="text-center text-xs text-slate-600">⌘↵ to scan</p>
+      </div>
     </form>
   )
 }

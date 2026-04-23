@@ -1,18 +1,31 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { Finding, Severity } from '@/types/findings'
+import { decodeFindings } from '@/lib/share'
 import FindingsTable from '@/components/FindingsTable'
 import FindingsSkeleton from '@/components/FindingsSkeleton'
 import EmptyState from '@/components/EmptyState'
 import SeverityBadge from '@/components/SeverityBadge'
+import ThemeToggle from '@/components/ThemeToggle'
 
 export default function ResultsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [findings, setFindings] = useState<Finding[] | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
+    const encoded = searchParams.get('r')
+    if (encoded) {
+      const decoded = decodeFindings(encoded)
+      if (decoded.length > 0) {
+        setFindings(decoded)
+        return
+      }
+    }
+
     const raw = sessionStorage.getItem('sg_findings')
     if (!raw) {
       router.replace('/')
@@ -23,11 +36,18 @@ export default function ResultsPage() {
     } catch {
       router.replace('/')
     }
-  }, [router])
+  }, [router, searchParams])
 
   function handleScanAnother() {
     sessionStorage.removeItem('sg_findings')
     router.push('/')
+  }
+
+  function handleShare() {
+    const url = window.location.href
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (findings === null) {
@@ -41,10 +61,12 @@ export default function ResultsPage() {
   const counts: Record<Severity, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 }
   for (const f of findings) counts[f.severity]++
 
+  const canCopy = typeof navigator !== 'undefined' && navigator.clipboard
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Nav */}
-      <header className="border-b border-[#2a2d3a] bg-[#0f1117]/80 backdrop-blur-sm">
+      <header className="border-b border-[var(--border)] bg-[var(--bg)]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <button
             onClick={handleScanAnother}
@@ -55,19 +77,41 @@ export default function ResultsPage() {
             </svg>
             Soroban Guard
           </button>
-          <button
-            onClick={handleScanAnother}
-            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
-          >
-            Scan another contract
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleScanAnother}
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
+            >
+              Scan another contract
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
         {/* Summary bar */}
         <div className="mb-8">
-          <h1 className="mb-1 text-2xl font-bold text-white">Scan Results</h1>
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-white">Scan Results</h1>
+            <div className="relative">
+              <button
+                onClick={handleCopyJson}
+                disabled={!canCopy}
+                title={canCopy ? 'Copy findings as JSON' : 'Clipboard API unavailable'}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-[#1a1d27] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+              {copied && (
+                <div className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-lg bg-green-600 px-3 py-1 text-xs text-white">
+                  Copied!
+                </div>
+              )}
+            </div>
+          </div>
           <p className="mb-6 text-sm text-slate-500">
             {findings.length === 0
               ? 'No issues detected.'
@@ -140,7 +184,7 @@ export default function ResultsPage() {
         )}
       </main>
 
-      <footer className="border-t border-[#2a2d3a] py-6 text-center text-xs text-slate-600">
+      <footer className="border-t border-[var(--border)] py-6 text-center text-xs text-slate-600">
         Soroban Guard · Veritas Vaults Network
       </footer>
     </div>
@@ -152,7 +196,7 @@ function SummaryCard({
   value,
   color,
   bg,
-  border = 'border-[#2a2d3a]',
+  border = 'border-[var(--border)]',
 }: {
   label: string
   value: number
