@@ -32,6 +32,17 @@ export default function FindingCard({ finding }: Props) {
         <Detail label="File" value={finding.file_path} mono />
         <Detail label="Line" value={String(finding.line)} mono />
       </div>
+
+      <div className="mt-4 text-right">
+        <a
+          href={`https://github.com/Veritas-Vaults-Network/soroban-guard-core/issues/new?title=${encodeURIComponent(`False positive: ${finding.check_name}`)}&body=${encodeURIComponent(finding.description)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+        >
+          Report false positive
+        </a>
+      </div>
     </div>
   )
 }

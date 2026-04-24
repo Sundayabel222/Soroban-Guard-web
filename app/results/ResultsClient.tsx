@@ -14,6 +14,7 @@ export default function ResultsPage() {
   const searchParams = useSearchParams()
   const [findings, setFindings] = useState<Finding[] | null>(null)
   const [copied, setCopied] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const encoded = searchParams.get('r')
@@ -37,12 +38,21 @@ export default function ResultsPage() {
     }
   }, [router, searchParams])
 
+  useEffect(() => {
+    if (findings != null) {
+      document.title = `${findings.length} findings — Soroban Guard`
+    }
+    return () => {
+      document.title = 'Soroban Guard — Smart Contract Security Scanner'
+    }
+  }, [findings])
+
   function handleScanAnother() {
     sessionStorage.removeItem('sg_findings')
     router.push('/')
   }
 
-  function handleShare() {
+  function handleCopyJson() {
     const url = window.location.href
     navigator.clipboard.writeText(url)
     setCopied(true)
@@ -59,8 +69,19 @@ export default function ResultsPage() {
     )
   }
 
-  const counts: Record<Severity, number> = { High: 0, Medium: 0, Low: 0 }
+  const counts: Record<Severity, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 }
   for (const f of findings) counts[f.severity]++
+
+  const q = searchQuery.toLowerCase()
+  const filteredFindings = q
+    ? findings.filter(
+        f =>
+          f.check_name.toLowerCase().includes(q) ||
+          f.function_name.toLowerCase().includes(q) ||
+          f.file_path.toLowerCase().includes(q) ||
+          f.description.toLowerCase().includes(q),
+      )
+    : findings
 
   const canCopy = typeof navigator !== 'undefined' && navigator.clipboard
 
@@ -167,13 +188,43 @@ export default function ResultsPage() {
                 )}
               </div>
             </div>
+            {/* Search input */}
+            <div className="relative mb-4">
+              <label htmlFor="findings-search" className="sr-only">Search findings</label>
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                id="findings-search"
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by check, function, file, or description…"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] py-2 pl-9 pr-9 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {/* Sort: High → Medium → Low */}
-            <FindingsTable
-              findings={[...findings].sort((a, b) => {
-                const order: Record<Severity, number> = { High: 0, Medium: 1, Low: 2 }
-                return order[a.severity] - order[b.severity]
-              })}
-            />
+            {filteredFindings.length === 0 ? (
+              <p className="py-10 text-center text-sm text-slate-500">No findings match your search.</p>
+            ) : (
+              <FindingsTable
+                findings={[...filteredFindings].sort((a, b) => {
+                  const order: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
+                  return order[a.severity] - order[b.severity]
+                })}
+              />
+            )}
           </div>
         )}
       </main>
