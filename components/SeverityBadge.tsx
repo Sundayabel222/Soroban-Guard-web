@@ -11,6 +11,7 @@ const styles: Record<Severity, string> = {
   High: 'bg-red-500/15 text-red-400 border border-red-500/30',
   Medium: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
   Low: 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
+  Info: 'bg-slate-500/10 text-slate-300 border border-slate-500/20',
 }
 
 const dots: Record<Severity, string> = {
@@ -18,6 +19,7 @@ const dots: Record<Severity, string> = {
   High: 'bg-red-400',
   Medium: 'bg-amber-400',
   Low: 'bg-sky-400',
+  Info: 'bg-slate-300',
 }
 
 const icons: Record<Severity, string> = {

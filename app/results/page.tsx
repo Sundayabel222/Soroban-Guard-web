@@ -182,6 +182,13 @@ export function generateMetadata({ searchParams }: Props): Metadata {
               bg="bg-sky-500/5"
               border="border-sky-500/20"
             />
+            <SummaryCard
+              label="Info"
+              value={counts.Info}
+              color="text-slate-300"
+              bg="bg-slate-500/5"
+              border="border-slate-500/20"
+            />
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import ScanInput from '@/components/ScanInput'
 import WalletConnect from '@/components/WalletConnect'
@@ -14,6 +14,7 @@ import ContractIdBadge from '@/components/ContractIdBadge'
 import type { Finding } from '@/types/findings'
 import type { ContractScanRecord } from '@/types/stellar'
 import { NETWORKS } from '@/types/stellar'
+import { addRecord } from '@/lib/history'
 
 export default function Page() {
   return (
@@ -32,7 +33,7 @@ function HomePage() {
   const [statusMessage, setStatusMessage] = useState('')
   const [scanHistory] = useState<ContractScanRecord[]>([])
 
-  async function handleScan(source: string) {
+  async function handleScan(source: string, mode: 'code' | 'github' | 'contractId' = 'code') {
     setLoading(true)
     setError(null)
     setRateLimitCountdown(null)

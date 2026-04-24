@@ -5,7 +5,7 @@ import { useState, useRef } from 'react'
 type InputMode = 'code' | 'github' | 'contractId'
 
 interface Props {
-  onScan: (source: string) => void
+  onScan: (source: string, mode: InputMode) => void
   loading: boolean
   countdown?: number
   initialValue?: string
@@ -53,7 +53,7 @@ export default function ScanInput({ onScan, loading, countdown = 0, initialValue
           ? repoUrl.trim()
           : contractId.trim()
     if (!source) return
-    onScan(source)
+    onScan(source, mode)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
