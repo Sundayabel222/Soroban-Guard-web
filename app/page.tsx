@@ -22,6 +22,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
   const [networkHealthy, setNetworkHealthy] = useState(true)
   const [statusMessage, setStatusMessage] = useState('')
+  const [scanHistory] = useState<ContractScanRecord[]>([])
 
   async function handleScan(source: string) {
     setLoading(true)

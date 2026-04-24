@@ -41,7 +41,6 @@ export async function fetchContractInfo(
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Horizon error ${res.status}: ${await res.text()}`)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await res.json()) as any
   return {
     contractId,
@@ -72,7 +71,6 @@ async function rpcCall<T>(
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`RPC HTTP error ${res.status}`)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = (await res.json()) as any
   if (json.error) throw new Error(`RPC error: ${json.error.message}`)
   return json.result as T

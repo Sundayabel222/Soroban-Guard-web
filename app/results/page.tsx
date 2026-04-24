@@ -61,6 +61,11 @@ export function generateMetadata({ searchParams }: Props): Metadata {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function handleCopyJson() {
+    if (!canCopy || !findings) return
+    navigator.clipboard.writeText(JSON.stringify(findings, null, 2))
+  }
+
   if (findings === null) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
